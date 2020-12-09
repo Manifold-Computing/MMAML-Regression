@@ -3,6 +3,20 @@ import numpy as np
 
 from maml.datasets.metadataset import Task
 
+import random
+import h5py
+
+from collections import defaultdict, namedtuple
+
+
+# set seed for reproducibility.
+seed = 42
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+# gpu training specific seed settings.
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 def generate_sinusoid_batch(amp_range, phase_range, input_range, num_samples,
                             batch_size, oracle, bias=0):
@@ -68,7 +82,7 @@ class SimpleFunctionDataset(object):
             val_tasks = []
             for task in range(self._meta_batch_size):
                 task_inputs = torch.tensor(
-                    inputs[task], device=self._device, dtype=self._dtype)
+                    inputs[task]/5, device=self._device, dtype=self._dtype)
                 task_outputs = torch.tensor(
                     outputs[task], device=self._device, dtype=self._dtype)
                 task_infos = infos[task]
@@ -312,7 +326,7 @@ class ManyFunctionsMetaDataset(SimpleFunctionDataset):
             input_range=self._input_range,
             num_samples=self._num_total_samples,
             batch_size=half_batch_size, oracle=self._oracle)
-        sin_task_infos = [{'task_id': 0, 'amp': amp[i], 'phase': phase[i]}
+        sin_task_infos = [{'task_id': f"0_{i}", 'amp': amp[i], 'phase': phase[i]}
                           for i in range(len(amp))]
         if self._task_oracle:
             sin_inputs = np.concatenate(
@@ -324,7 +338,7 @@ class ManyFunctionsMetaDataset(SimpleFunctionDataset):
             input_range=self._input_range,
             num_samples=self._num_total_samples,
             batch_size=half_batch_size, oracle=self._oracle)
-        lin_task_infos = [{'task_id': 1, 'slope': slope[i], 'intersect': intersect[i]}
+        lin_task_infos = [{'task_id': f"1_{i}", 'slope': slope[i], 'intersect': intersect[i]}
                           for i in range(len(slope))]
         if self._task_oracle:
             lin_inputs = np.concatenate(
@@ -337,7 +351,7 @@ class ManyFunctionsMetaDataset(SimpleFunctionDataset):
             input_range=self._input_range,
             num_samples=self._num_total_samples,
             batch_size=half_batch_size, oracle=self._oracle)
-        qua_task_infos = [{'task_id': 2, 'sign': sign[i], 'center': center[i], 'bias': bias[i]}
+        qua_task_infos = [{'task_id': f"2_{i}", 'sign': sign[i], 'center': center[i], 'bias': bias[i]}
                       for i in range(len(sign))]
 
         if self._task_oracle:
@@ -351,7 +365,18 @@ class ManyFunctionsMetaDataset(SimpleFunctionDataset):
             outputs = outputs + np.random.normal(scale=self._noise_std, size=outputs.shape)
         task_infos = sin_task_infos + lin_task_infos + qua_task_infos
         return inputs, outputs, task_infos
+    
+    def generic_dataset(self):
+        inputs, outputs, infos = self._generate_batch()
+        for batch in range(self._num_total_batches):
+            inputs, outputs, infos = self._generate_batch()
 
+            tasks = {}
+            for task in range(self._meta_batch_size):
+                task_infos = infos[task]
+                tasks[f"{task_infos['task_id']}-IN"] = inputs[task]/5
+                tasks[f"{task_infos['task_id']}-OUT"] = outputs[task]
+            return tasks
 
 class MultiSinusoidsMetaDataset(SimpleFunctionDataset):
     def __init__(self, amp_range=[0.1, 5.0], phase_range=[0, np.pi], biases=(-5, 5),
