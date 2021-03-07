@@ -348,105 +348,124 @@ class MixedFunctionsMetaDataset(SimpleFunctionDataset):
 
 class ManyFunctionsMetaDataset(SimpleFunctionDataset):
 
-  def __init__(self,
-               amp_range=[0.1, 5.0],
-               phase_range=[0, np.pi],
-               input_range=[-5.0, 5.0],
-               slope_range=[-3.0, 3.0],
-               intersect_range=[-3.0, 3.0],
-               center_range=[-3.0, 3.0],
-               bias_range=[-3.0, 3.0],
-               sign_range=[0.02, 0.15],
-               task_oracle=False,
-               noise_std=0,
-               **kwargs):
-    super(ManyFunctionsMetaDataset, self).__init__(**kwargs)
-    self._amp_range = amp_range
-    self._phase_range = phase_range
-    self._slope_range = slope_range
-    self._intersect_range = intersect_range
-    self._input_range = input_range
-    self._center_range = center_range
-    self._bias_range = bias_range
-    self._sign_range = sign_range
-    self._task_oracle = task_oracle
-    self._noise_std = noise_std
+    def __init__(self, 
+                 amp_range=[0.1, 5.0], 
+                 phase_range=[0, np.pi],
+                 input_range=[-5.0, 5.0], 
+                 slope_range=[-3.0, 3.0],
+                 intersect_range=[-3.0, 3.0], 
+                 center_range=[-3.0, 3.0],
+                 bias_range=[-3.0, 3.0], 
+                 sign_range=[0.02, 0.15], 
+                 task_oracle=False,
+                 noise_std=0, 
+                 **kwargs):
+        super(ManyFunctionsMetaDataset, self).__init__(**kwargs)
+        self._amp_range = amp_range
+        self._phase_range = phase_range
+        self._slope_range = slope_range
+        self._intersect_range = intersect_range
+        self._input_range = input_range
+        self._center_range = center_range
+        self._bias_range = bias_range
+        self._sign_range = sign_range
+        self._task_oracle = task_oracle
+        self._noise_std = noise_std
 
-    if not self._oracle:
-      if not self._task_oracle:
-        self.input_size = 1
-      else:
-        self.input_size = 2
-    else:
-      if not self._task_oracle:
-        self.input_size = 3
-      else:
-        self.input_size = 4
+        if not self._oracle:
+            if not self._task_oracle:
+                self.input_size = 1
+            else:
+                self.input_size = 2
+        else:
+            if not self._task_oracle:
+                self.input_size = 3
+            else:
+                self.input_size = 4
 
-    self.output_size = 1
-    self.num_tasks = 2
+        self.output_size = 1
+        self.num_tasks = 2
 
-  def _generate_batch(self):
-    half_batch_size = self._meta_batch_size // 3
-    sin_inputs, sin_outputs, amp, phase = generate_sinusoid_batch(
-        amp_range=self._amp_range,
-        phase_range=self._phase_range,
-        input_range=self._input_range,
-        num_samples=self._num_total_samples,
-        batch_size=half_batch_size,
-        oracle=self._oracle)
-    sin_task_infos = [{
-        'task_id': 0,
-        'amp': amp[i],
-        'phase': phase[i]
-    } for i in range(len(amp))]
-    if self._task_oracle:
-      sin_inputs = np.concatenate(
-          (sin_inputs, np.zeros(sin_inputs.shape[:2] + (1,))), axis=2)
+    def _generate_batch(self):
+        half_batch_size = self._meta_batch_size // 3
+        sin_inputs, sin_outputs, amp, phase = generate_sinusoid_batch(
+            amp_range=self._amp_range, 
+            phase_range=self._phase_range,
+            input_range=self._input_range,
+            num_samples=self._num_total_samples,
+            batch_size=half_batch_size, 
+            oracle=self._oracle)
+        sin_task_infos = [{
+              'task_id': f"0_{i}", 
+              'amp': amp[i], 
+              'phase': phase[i]
+              } for i in range(len(amp))]
+        if self._task_oracle:
+            sin_inputs = np.concatenate(
+                (sin_inputs, np.zeros(sin_inputs.shape[:2] + (1,))), axis=2)
 
-    lin_inputs, lin_outputs, slope, intersect = generate_linear_batch(
-        slope_range=self._slope_range,
-        intersect_range=self._intersect_range,
-        input_range=self._input_range,
-        num_samples=self._num_total_samples,
-        batch_size=half_batch_size,
-        oracle=self._oracle)
-    lin_task_infos = [{
-        'task_id': 1,
-        'slope': slope[i],
-        'intersect': intersect[i]
-    } for i in range(len(slope))]
-    if self._task_oracle:
-      lin_inputs = np.concatenate(
-          (lin_inputs, np.ones(lin_inputs.shape[:2] + (1,))), axis=2)
+        lin_inputs, lin_outputs, slope, intersect = generate_linear_batch(
+            slope_range=self._slope_range,
+            intersect_range=self._intersect_range,
+            input_range=self._input_range,
+            num_samples=self._num_total_samples,
+            batch_size=half_batch_size, 
+            oracle=self._oracle)
+        lin_task_infos = [{
+          'task_id': f"1_{i}", 
+          'slope': slope[i], 
+          'intersect': intersect[i]
+          } for i in range(len(slope))]
+        if self._task_oracle:
+            lin_inputs = np.concatenate(
+                (lin_inputs, np.ones(lin_inputs.shape[:2] + (1,))), axis=2)
 
-    qua_inputs, qua_outputs, sign, center, bias = generate_quadratic_batch(
-        center_range=self._center_range,
-        bias_range=self._bias_range,
-        sign_range=self._sign_range,
-        input_range=self._input_range,
-        num_samples=self._num_total_samples,
-        batch_size=half_batch_size,
-        oracle=self._oracle)
-    qua_task_infos = [{
-        'task_id': 2,
-        'sign': sign[i],
-        'center': center[i],
-        'bias': bias[i]
-    } for i in range(len(sign))]
+        qua_inputs, qua_outputs, sign, center, bias = generate_quadratic_batch(
+            center_range=self._center_range,
+            bias_range=self._bias_range,
+            sign_range=self._sign_range,
+            input_range=self._input_range,
+            num_samples=self._num_total_samples,
+            batch_size=half_batch_size, 
+            oracle=self._oracle)
+        qua_task_infos = [{
+          'task_id': f"2_{i}", 
+          'sign': sign[i], 
+          'center': center[i], 
+          'bias': bias[i]
+          } for i in range(len(sign))]
 
-    if self._task_oracle:
-      qua_inputs = np.concatenate(
-          (qua_inputs, np.ones(qua_inputs.shape[:2] + (1,))), axis=2)
+        if self._task_oracle:
+          qua_inputs = np.concatenate(
+              (qua_inputs, np.ones(qua_inputs.shape[:2] + (1,))), axis=2)
 
-    inputs = np.concatenate((sin_inputs, lin_inputs, qua_inputs))
-    outputs = np.concatenate((sin_outputs, lin_outputs, qua_outputs))
+        inputs = np.concatenate((sin_inputs, lin_inputs, qua_inputs))
+        outputs = np.concatenate((sin_outputs, lin_outputs, qua_outputs))
 
-    if self._noise_std > 0:
-      outputs = outputs + np.random.normal(scale=self._noise_std,
-                                           size=outputs.shape)
-    task_infos = sin_task_infos + lin_task_infos + qua_task_infos
-    return inputs, outputs, task_infos
+        if self._noise_std > 0:
+            outputs = outputs + np.random.normal(scale=self._noise_std, 
+                                                 size=outputs.shape)
+        task_infos = sin_task_infos + lin_task_infos + qua_task_infos
+        return inputs, outputs, task_infos
+    
+    def generic_dataset(self):
+      """
+      Generates a dataset that is compatible with modular metalearning.
+      The inputs are scaled down from [-5, 5] -> [-1, 1] by dividing by 5.
+      This helps with data ingestion into modular metalearning.
+      """
+      # creates a modular batch
+      for batch in range(self._num_total_batches):
+          # generates a multimodal dataset batch
+          inputs, outputs, infos = self._generate_batch()
+
+          # converts to modular format
+          tasks = {}
+          for task in range(self._meta_batch_size):
+              task_infos = infos[task]
+              tasks[f"{task_infos['task_id']}-IN"] = inputs[task]/5
+              tasks[f"{task_infos['task_id']}-OUT"] = outputs[task]
+          return tasks
 
 
 class MultiSinusoidsMetaDataset(SimpleFunctionDataset):
