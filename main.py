@@ -145,7 +145,7 @@ def main(args):
 
     DATA = dataset.generic_dataset()
     #Saves to file
-    h = h5py.File(f"{args.output_folder}/mmaml2modular_dataset.hdf5", "w")
+    h = h5py.File(f"{save_folder}/mmaml2modular_dataset.hdf5", "w")
     for k, v in DATA.items():
       h.create_dataset(k, data=v)
 
