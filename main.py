@@ -1,6 +1,7 @@
 import os
 import json
 import argparse
+import h5py
 
 import torch
 import numpy as np
@@ -141,6 +142,13 @@ def main(args):
         task_oracle=args.task_oracle,
         train=is_training,
         device=args.device)
+
+    DATA = dataset.generic_dataset()
+    #Saves to file
+    h = h5py.File(f"{args.output_folder}/mmaml2modular_dataset.hdf5", "w")
+    for k, v in DATA.items():
+      h.create_dataset(k, data=v)
+
     loss_func = torch.nn.MSELoss()
     collect_accuracies = False
     _num_tasks = 3
